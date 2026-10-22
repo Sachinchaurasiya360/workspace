@@ -39,6 +39,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           isFounder: user.isFounder,
           access: user.access,
           mustChangePassword: user.mustChangePassword,
+          sessionVersion: user.sessionVersion,
         };
       },
     }),

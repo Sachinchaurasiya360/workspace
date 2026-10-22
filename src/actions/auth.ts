@@ -5,8 +5,9 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { auth, signIn, signOut, unstable_update } from "@/lib/auth";
+import { signIn, signOut, unstable_update } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/login" });
@@ -48,9 +49,14 @@ export async function setPasswordAction(
   _prevState: SetPasswordState,
   formData: FormData
 ): Promise<SetPasswordState> {
-  const session = await auth();
-  if (!session?.user) {
+  // Only for accounts on a temporary password; everyone else changes their
+  // password from Profile, which asks for the current one.
+  const user = await getCurrentUser();
+  if (!user) {
     return { error: "You must be signed in." };
+  }
+  if (!user.mustChangePassword) {
+    return { error: "Your password is already set. Change it from your profile." };
   }
 
   const parsed = setPasswordSchema.safeParse({
@@ -62,13 +68,14 @@ export async function setPasswordAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-  await db.user.update({
-    where: { id: session.user.id },
-    data: { passwordHash, mustChangePassword: false },
+  const updated = await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash, mustChangePassword: false, sessionVersion: { increment: 1 } },
   });
   // Flat shape to match how auth.config.ts's jwt callback merges `session`
   // straight into the token on trigger === "update" (see comment there).
-  await unstable_update({ mustChangePassword: false } as never);
+  // Carrying the new sessionVersion keeps this session; any other is signed out.
+  await unstable_update({ mustChangePassword: false, sessionVersion: updated.sessionVersion } as never);
 
   redirect("/");
 }

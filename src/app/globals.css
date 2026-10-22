@@ -4,47 +4,62 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.6875rem;
 
-  /* Neutral, light-only surface scale */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.01 260);
+  /* Warm paper surface scale — synced from the Nucleo Workspace Redesign canvas */
+  --background: #f4f3ee;
+  --foreground: #17181c;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 260);
+  --card: #ffffff;
+  --card-foreground: #17181c;
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 260);
+  --popover: #ffffff;
+  --popover-foreground: #17181c;
 
-  --muted: oklch(0.97 0.003 260);
-  --muted-foreground: oklch(0.5 0.01 260);
+  --muted: #efede6;
+  --muted-foreground: #5e6068;
 
-  --border: oklch(0.9 0.005 260);
-  --input: oklch(0.9 0.005 260);
-  --ring: oklch(0.45 0.14 264);
+  --border: #e4e2da;
+  --input: #d9d7ce;
+  --ring: #3a4db5;
 
   /* Single accent color used for primary actions, active nav, focus rings */
-  --primary: oklch(0.45 0.14 264);
-  --primary-foreground: oklch(0.98 0 0);
+  --primary: #3a4db5;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e9ecf8;
+  --primary-strong: #2c3c94;
 
-  --secondary: oklch(0.96 0.004 260);
-  --secondary-foreground: oklch(0.25 0.01 260);
+  --secondary: #e9e7e0;
+  --secondary-foreground: #3f4148;
 
-  --accent: oklch(0.96 0.004 260);
-  --accent-foreground: oklch(0.25 0.01 260);
+  --accent: #efede6;
+  --accent-foreground: #17181c;
 
-  --destructive: oklch(0.55 0.19 25);
-  --destructive-foreground: oklch(0.98 0 0);
+  --destructive: #a3342a;
+  --destructive-foreground: #ffffff;
 
   /* Status colors — used only as subtle/muted badge backgrounds, never as gradients or bright fills */
-  --success: oklch(0.55 0.13 155);
-  --success-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.7 0.15 75);
-  --warning-foreground: oklch(0.2 0.02 75);
+  --success: #1f7a55;
+  --success-foreground: #ffffff;
+  --warning: #c98a1b;
+  --warning-foreground: #5c3900;
+  --warning-soft: #fbf1dc;
 
-  --sidebar: oklch(0.99 0.002 260);
-  --sidebar-foreground: oklch(0.18 0.01 260);
-  --sidebar-border: oklch(0.92 0.005 260);
+  --sidebar: #fbfaf7;
+  --sidebar-foreground: #17181c;
+  --sidebar-border: #e4e2da;
+
+  /* Data-viz: categorical slots in fixed order (validated for CVD separation
+     on white), plus recessive chart chrome. Colour follows the entity — never
+     reassign slots by rank. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
 }
 
 @theme inline {
@@ -56,6 +71,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -68,6 +85,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -80,6 +98,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader), Georgia, serif;
 }
 
 body {
@@ -89,4 +108,12 @@ body {
 
 * {
   border-color: var(--color-border);
+}
+
+/* Page and section display headings use the serif face from the design. */
+.font-display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }

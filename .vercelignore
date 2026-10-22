@@ -1,0 +1,6 @@
+legacy
+scripts/migration-output
+.env
+.env.local
+.env.example
+*.tsbuildinfo

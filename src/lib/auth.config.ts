@@ -15,6 +15,7 @@ export const authConfig = {
         token.isFounder = user.isFounder as boolean;
         token.access = user.access as AccessLevel;
         token.mustChangePassword = user.mustChangePassword as boolean;
+        token.sessionVersion = (user.sessionVersion as number | undefined) ?? 0;
       }
       // Lets server actions push a fresh claim into the JWT (e.g. after
       // setPasswordAction clears mustChangePassword) via unstable_update() —
@@ -29,6 +30,7 @@ export const authConfig = {
       session.user.isFounder = token.isFounder as boolean;
       session.user.access = token.access as AccessLevel;
       session.user.mustChangePassword = token.mustChangePassword as boolean;
+      session.user.sessionVersion = (token.sessionVersion as number | undefined) ?? 0;
       return session;
     },
   },

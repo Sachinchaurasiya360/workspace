@@ -8,6 +8,7 @@ declare module "next-auth" {
       isFounder: boolean;
       access: AccessLevel;
       mustChangePassword: boolean;
+      sessionVersion: number;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
     isFounder: boolean;
     access: AccessLevel;
     mustChangePassword: boolean;
+    sessionVersion?: number;
   }
 }
 
@@ -25,5 +27,6 @@ declare module "next-auth/jwt" {
     isFounder: boolean;
     access: AccessLevel;
     mustChangePassword: boolean;
+    sessionVersion?: number;
   }
 }

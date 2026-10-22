@@ -7,6 +7,8 @@ import {
   assertIsAdmin,
   assertProjectAccess,
   assertTaskAccess,
+  canDeleteTask,
+  canEditTask,
   canManageAll,
 } from "@/lib/access";
 
@@ -35,16 +37,39 @@ describe("canManageAll", () => {
 
 describe("assertTaskAccess", () => {
   it("allows the task's own assignee", () => {
-    expect(() => assertTaskAccess(member, { assigneeId: member.id })).not.toThrow();
+    expect(() => assertTaskAccess(member, { assigneeId: member.id, createdById: admin.id })).not.toThrow();
   });
   it("allows an admin to access anyone's task", () => {
-    expect(() => assertTaskAccess(admin, { assigneeId: member.id })).not.toThrow();
+    expect(() => assertTaskAccess(admin, { assigneeId: member.id, createdById: admin.id })).not.toThrow();
   });
   it("allows a founder to access anyone's task", () => {
-    expect(() => assertTaskAccess(founder, { assigneeId: member.id })).not.toThrow();
+    expect(() => assertTaskAccess(founder, { assigneeId: member.id, createdById: admin.id })).not.toThrow();
   });
   it("blocks a member from another member's task", () => {
-    expect(() => assertTaskAccess(member, { assigneeId: otherMember.id })).toThrow(ForbiddenError);
+    expect(() => assertTaskAccess(member, { assigneeId: otherMember.id, createdById: admin.id })).toThrow(ForbiddenError);
+  });
+});
+
+describe("canEditTask / canDeleteTask", () => {
+  const assignedByAdmin = { assigneeId: member.id, createdById: admin.id };
+
+  it("lets the creator and the project lead edit a task assigned to someone else", () => {
+    expect(canEditTask(otherMember, { assigneeId: member.id, createdById: otherMember.id })).toBe(true);
+    expect(canEditTask(otherMember, assignedByAdmin, otherMember.id)).toBe(true);
+  });
+
+  it("lets an assignee edit but not delete a task someone else assigned", () => {
+    expect(canEditTask(member, assignedByAdmin)).toBe(true);
+    expect(canDeleteTask(member, assignedByAdmin)).toBe(false);
+  });
+
+  it("lets an assignee delete a task they created themselves", () => {
+    expect(canDeleteTask(member, { assigneeId: member.id, createdById: member.id })).toBe(true);
+  });
+
+  it("blocks an unrelated member", () => {
+    expect(canEditTask(otherMember, assignedByAdmin)).toBe(false);
+    expect(canDeleteTask(otherMember, assignedByAdmin, member.id)).toBe(false);
   });
 });
 

@@ -9,6 +9,8 @@ import { authConfig } from "@/lib/auth.config";
 const { auth } = NextAuth(authConfig);
 
 const PUBLIC_ROUTES = ["/login"];
+// Readable signed in or out, without the signed-in redirect away from /login.
+const OPEN_ROUTES = ["/roles"];
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -17,6 +19,10 @@ export default auth((req) => {
     nextUrl.pathname.startsWith(route)
   );
   const isSetPasswordRoute = nextUrl.pathname.startsWith("/set-password");
+
+  if (OPEN_ROUTES.some((route) => nextUrl.pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
 
   if (!isLoggedIn && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", nextUrl));

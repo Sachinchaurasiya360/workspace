@@ -35,7 +35,6 @@ import {
   ApprovalStatus,
   ApprovalType,
   CommentEntityType,
-  EventOverviewStatus,
   KpiMetric,
   PrismaClient,
   ProjectStatus,
@@ -206,19 +205,23 @@ function mapProjectStatus(raw: unknown, rowRef: string | number): ProjectStatus 
   }
 }
 
-function mapEventOverviewStatus(raw: unknown, rowRef: string | number): EventOverviewStatus {
+/** The legacy sheet had one status column; it now maps onto participation or execution. */
+function mapEventOverviewStatus(
+  raw: unknown,
+  rowRef: string | number
+): { participation?: "REGISTERED" | "ATTENDED"; execution?: "IN_PLAN" | "CONDUCTED"; attendedAt?: Date; conductedAt?: Date } {
   switch (normalizeKey(raw)) {
     case "in plan":
-      return EventOverviewStatus.IN_PLAN;
+      return { execution: "IN_PLAN" };
     case "registered":
-      return EventOverviewStatus.REGISTERED;
+      return { participation: "REGISTERED" };
     case "attended":
-      return EventOverviewStatus.ATTENDED;
+      return { participation: "ATTENDED", attendedAt: new Date() };
     case "conducted":
-      return EventOverviewStatus.CONDUCTED;
+      return { execution: "CONDUCTED", conductedAt: new Date() };
     default:
-      logIssue("Event Overview", rowRef, `Unrecognized Status "${raw}" — defaulted to IN_PLAN`);
-      return EventOverviewStatus.IN_PLAN;
+      logIssue("Event Overview", rowRef, `Unrecognized Status "${raw}" — defaulted to In plan`);
+      return { execution: "IN_PLAN" };
   }
 }
 
@@ -652,11 +655,11 @@ async function main() {
 
     await db.eventOverview.upsert({
       where: { userId_eventId: { userId: user.id, eventId: event.id } },
-      update: { status: mapEventOverviewStatus(row["Status"], rowRef) },
+      update: mapEventOverviewStatus(row["Status"], rowRef),
       create: {
         userId: user.id,
         eventId: event.id,
-        status: mapEventOverviewStatus(row["Status"], rowRef),
+        ...mapEventOverviewStatus(row["Status"], rowRef),
       },
     });
     eventOverviewCount++;

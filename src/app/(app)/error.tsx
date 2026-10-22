@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -13,16 +12,18 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <Card className="max-w-sm">
-        <CardContent className="flex flex-col items-center gap-3 text-center">
-          <AlertTriangle className="size-8 text-destructive" />
-          <p className="text-sm font-medium">Something went wrong</p>
-          <p className="text-sm text-muted-foreground">
-            {error.message || "An unexpected error occurred while loading this page."}
-          </p>
-          <Button onClick={reset}>Try again</Button>
-        </CardContent>
-      </Card>
+      <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-card p-8 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-[#f8e3e0] text-destructive">
+          <AlertTriangle className="size-6" />
+        </span>
+        <h2 className="font-display text-[28px]">Something went wrong</h2>
+        <p className="text-sm text-muted-foreground">
+          {error.message || "An unexpected error occurred while loading this page."}
+        </p>
+        <Button onClick={reset} className="mt-2">
+          Try again
+        </Button>
+      </div>
     </div>
   );
 }

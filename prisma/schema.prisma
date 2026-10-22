@@ -13,6 +13,8 @@ enum AccessLevel {
   ADMIN
   ADMIN_TASK_BASED
   SALES_TASK_BASED
+  ENGINEERING
+  ADMIN_SALES_BASED
 }
 
 enum TaskStatus {
@@ -36,10 +38,15 @@ enum ProjectStatus {
   COMPLETED
 }
 
-enum EventOverviewStatus {
-  IN_PLAN
+/// The user as a participant: signed up, then attended.
+enum EventParticipation {
   REGISTERED
   ATTENDED
+}
+
+/// The user as an organiser: planning it, then ran it.
+enum EventExecution {
+  IN_PLAN
   CONDUCTED
 }
 
@@ -48,6 +55,7 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   DISCUSS
+  CANCELLED
 }
 
 enum ApprovalType {
@@ -60,10 +68,27 @@ enum KpiMetric {
   DISCOVERY
   PROFILES
   FOLLOW_UPS
+  MEETINGS
   DEALS_CLOSED
   EVENTS_ATTENDED
   EVENTS_CONDUCTED
   TASKS_COMPLETED
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  MEETING
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum LeadActivityType {
+  CALL
+  FOLLOW_UP
+  MEETING
+  NOTE
 }
 
 enum CommentEntityType {
@@ -73,18 +98,21 @@ enum CommentEntityType {
 }
 
 model User {
-  id                 String   @id @default(cuid())
+  id                 String      @id @default(cuid())
   name               String
-  email              String   @unique
+  email              String      @unique
   passwordHash       String
-  mustChangePassword Boolean  @default(true)
+  mustChangePassword Boolean     @default(true)
+  // Bumped on password reset/change; JWTs carrying an older value are rejected.
+  sessionVersion     Int         @default(0)
   role               String
-  isFounder          Boolean  @default(false)
+  phone              String?
+  isFounder          Boolean     @default(false)
   access             AccessLevel @default(TASK_BASED)
   notes              String?
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   tasksAssigned      Task[]          @relation("TaskAssignee")
   tasksCreated       Task[]          @relation("TaskCreatedBy")
@@ -97,6 +125,10 @@ model User {
   dailyLogs          DailyLog[]
   comments           Comment[]
   auditLogs          AuditLog[]
+  notifications      Notification[]
+  projectsMember     Project[]       @relation("ProjectMembers")
+  leadsOwned         Lead[]          @relation("LeadOwner")
+  leadActivities     LeadActivity[]
 
   @@index([email])
 }
@@ -123,6 +155,8 @@ model Project {
 
   tasks    Task[]
   comments Comment[] @relation("ProjectComments")
+  members  User[]    @relation("ProjectMembers")
+  leads    Lead[]
 
   @@index([leadId])
 }
@@ -139,6 +173,8 @@ model Task {
   status                TaskStatus   @default(TODO)
   priority              TaskPriority @default(MEDIUM)
   dueDate               DateTime?
+  // When the task last became COMPLETED (null while open) — KPIs count on this, not updatedAt.
+  completedAt           DateTime?
   createdById           String?
   createdBy             User?        @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt             DateTime     @default(now())
@@ -149,6 +185,9 @@ model Task {
 
   approvals Approval[]
   comments  Comment[]  @relation("TaskComments")
+  // Optional sales context: a follow-up task created from a lead.
+  leadId    String?
+  lead      Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([assigneeId, status])
   @@index([projectId])
@@ -175,18 +214,23 @@ model Event {
 
   eventOverviews EventOverview[]
   approvals      Approval[]
-  comments       Comment[] @relation("EventComments")
+  comments       Comment[]       @relation("EventComments")
 }
 
 model EventOverview {
-  id        String              @id @default(cuid())
-  userId    String
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId   String
-  event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  status    EventOverviewStatus @default(IN_PLAN)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId       String
+  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // Tracked independently: someone can attend an event *and* help run it.
+  participation EventParticipation?
+  execution     EventExecution?
+  // When each milestone happened — the event KPIs count on these.
+  attendedAt    DateTime?
+  conductedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   @@unique([userId, eventId])
 }
@@ -195,11 +239,12 @@ model Approval {
   id            String         @id @default(cuid())
   type          ApprovalType
   status        ApprovalStatus @default(REQUEST_RAISED)
-  requestedById String
-  requestedBy   User           @relation("ApprovalRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedById String?
+  requestedBy   User?          @relation("ApprovalRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
   approvedById  String?
   approvedBy    User?          @relation("ApprovalApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   comment       String?
+  requestNote   String?
   taskId        String?
   task          Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
   eventId       String?
@@ -236,6 +281,10 @@ model DailyLog {
   discoveryDemos  Int      @default(0)
   profilesSignups Int      @default(0)
   activitiesHtml  String?
+  // [{ taskId, title, status }] snapshot of tasks touched in this update
+  taskUpdates     Json?
+  // [{ eventId, name, change: "ATTENDED" | "CONDUCTED" }] recorded with this update
+  eventUpdates    Json?
   createdAt       DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -250,8 +299,8 @@ model Comment {
   project        Project?          @relation("ProjectComments", fields: [projectId], references: [id], onDelete: Cascade)
   eventId        String?
   event          Event?            @relation("EventComments", fields: [eventId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId         String?
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   body           String
   isLegacyImport Boolean           @default(false)
   createdAt      DateTime          @default(now())
@@ -273,4 +322,56 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Lead {
+  id           String    @id @default(cuid())
+  name         String
+  company      String?
+  email        String?
+  phone        String?
+  stage        LeadStage @default(NEW)
+  value        Int?
+  source       String?
+  nextFollowUp DateTime?
+  notes        String?
+  ownerId      String
+  owner        User      @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  activities LeadActivity[]
+  tasks      Task[]
+  // The initiative this prospect belongs to, if any.
+  projectId  String?
+  project    Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, stage])
+}
+
+model LeadActivity {
+  id        String           @id @default(cuid())
+  leadId    String
+  lead      Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type      LeadActivityType
+  note      String?
+  createdAt DateTime         @default(now())
+
+  @@index([leadId])
+  @@index([userId, createdAt])
 }
